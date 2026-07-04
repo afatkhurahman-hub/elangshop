@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Menu, X, AlertTriangle } from "lucide-react";
+import { Search, Menu, X, AlertTriangle, LogOut, User } from "lucide-react";
+import { supabase } from "@/supabaseClient";
+import Link from "next/link";
 
 // 1. Interface Props tetap dipertahankan
 interface NavbarProps {
@@ -17,9 +19,36 @@ export default function Navbar({
 }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // State baru untuk manajemen session user dari Supabase
+  const [user, setUser] = useState<any>(null);
 
   // State untuk mengontrol kemunculan pop-up kustom "fitur sedang dikembangkan"
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
+
+  // Ambil dan pantau session login user
+  useEffect(() => {
+    // 1. Dapatkan user aktif saat pertama kali navbar dimuat
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    // 2. Pasang listener untuk mendeteksi perubahan auth (Login/Logout) secara real-time
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fungsi penanganan keluar akun (Logout)
+  const handleLogout = async () => {
+    const confirmLogout = window.confirm("Apakah Anda yakin ingin keluar dari ELANGSHOP?");
+    if (confirmLogout) {
+      await supabase.auth.signOut();
+      alert("Berhasil keluar akun!");
+    }
+  };
 
   // Mapping Menu Display dengan ID Kategori data asli kamu
   const menuList = [
@@ -114,7 +143,7 @@ export default function Navbar({
           })}
         </div>
 
-        {/* ========================== SEARCH BAR DESKTOP (ASLI TIDAK BERGESER) ========================== */}
+        {/* ========================== SEARCH BAR DESKTOP ========================== */}
         <div className="hidden xl:flex items-center justify-between w-[180px] h-[42px] bg-[#121A2E] border border-white/10 rounded-xl px-3 group focus-within:border-[#FACC15]/40 transition-all shrink-0">
           <input
             type="text"
@@ -138,19 +167,45 @@ export default function Navbar({
             Cek Transaksi
           </button>
 
-          <button
-            onClick={() => setIsDevModalOpen(true)}
-            className="h-[38px] xl:h-[42px] px-4 rounded-xl border border-white/10 hover:border-[#FACC15]/30 hover:bg-white/5 transition text-xs font-bold text-gray-200 hover:text-white whitespace-nowrap"
-          >
-            Login
-          </button>
+          {/* KONDISIONAL USER INTERFACE: SUDAH LOGIN VS BELUM LOGIN */}
+          {user ? (
+            <div className="flex items-center gap-2">
+              {/* Tampilan Ringkas Info User */}
+              <div className="hidden sm:flex flex-col items-end px-2">
+                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Member</span>
+                <span className="text-xs font-bold text-gray-200 max-w-[120px] truncate">
+                  {user.user_metadata?.full_name || user.email?.split("@")[0]}
+                </span>
+              </div>
+              {/* Tombol Logout */}
+              <button
+                onClick={handleLogout}
+                className="h-[38px] xl:h-[42px] px-3 sm:px-4 rounded-xl border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 transition text-xs font-bold text-red-400 flex items-center gap-1.5"
+                title="Keluar Akun"
+              >
+                <LogOut size={13} />
+                <span className="hidden sm:inline">Keluar</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Tombol Login mengarah ke page /auth (tab default Masuk) */}
+              <Link
+                href="/auth"
+                className="h-[38px] xl:h-[42px] px-4 rounded-xl border border-white/10 hover:border-[#FACC15]/30 hover:bg-white/5 transition text-xs font-bold text-gray-200 hover:text-white flex items-center justify-center whitespace-nowrap"
+              >
+                Login
+              </Link>
 
-          <button
-            onClick={() => setIsDevModalOpen(true)}
-            className="h-[38px] xl:h-[42px] px-4 rounded-xl bg-[#FACC15] text-black font-extrabold hover:bg-[#EAB308] transition text-xs whitespace-nowrap shadow-lg shadow-[#FACC15]/5 active:scale-[0.97]"
-          >
-            Daftar
-          </button>
+              {/* Tombol Daftar mengarah ke page /auth (bisa dialihkan via state/query param jika dikembangkan lanjut) */}
+              <Link
+                href="/auth"
+                className="h-[38px] xl:h-[42px] px-4 rounded-xl bg-[#FACC15] text-black font-extrabold hover:bg-[#EAB308] transition text-xs flex items-center justify-center whitespace-nowrap shadow-lg shadow-[#FACC15]/5 active:scale-[0.97]"
+              >
+                Daftar
+              </Link>
+            </>
+          )}
 
           {/* TOGGLE BUTTON FOR MOBILE */}
           <button
