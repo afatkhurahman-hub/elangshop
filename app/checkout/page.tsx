@@ -1,6 +1,14 @@
+"use client"; // <--- WAJIB DI BARIS PERTAMA AGAR LOLOS BUILD VERCEL
+
 import { supabase } from "@/supabaseClient"; // Sesuaikan path config Supabase lu
 
-export default function CheckoutButton({ totalHarga, userEmail, noWaUser }: any) {
+interface CheckoutButtonProps {
+  totalHarga: number;
+  userEmail: string;
+  noWaUser: string;
+}
+
+export default function CheckoutButton({ totalHarga, userEmail, noWaUser }: CheckoutButtonProps) {
   
   const handleBeliViaWhatsApp = async () => {
     // 1. Generate nomor invoice acak (Contoh hasil: ELG-482910)
@@ -11,10 +19,10 @@ export default function CheckoutButton({ totalHarga, userEmail, noWaUser }: any)
       const { error } = await supabase
         .from("transactions")
         .insert([
-          { 
+          {
             id: invoiceId, // Ini alasan kenapa kolom id wajib tipe text
-            email: userEmail, 
-            whatsapp: noWaUser, 
+            email: userEmail,
+            whatsapp: noWaUser,
             total_price: totalHarga, // Kirim nominal total belanja (angka murni)
             status: "PENDING" // Otomatis terbaca, tapi amannya kita deklarasikan
           }
@@ -26,11 +34,13 @@ export default function CheckoutButton({ totalHarga, userEmail, noWaUser }: any)
       }
 
       // 3. Jika sukses simpan ke Supabase, buat teks otomatis untuk WA
-      const nomorAdminWA = "628193119133"; // ⚠️ GANTI pake nomor WA toko lu (Awali dengan 628, jangan pakai 08)
-      const pesanOtomatis = `Halo ELANGSHOP 🦅,\n\nSaya ingin memesan produk dengan detail berikut:\n• *Nomor Invoice:* ${invoiceId}\n• *Total Pembayaran:* Rp ${totalHarga.toLocaleString("id-ID")}\n\nSaya akan segera transfer dan mengirimkan bukti bayarnya di sini. Mohon diproses ya min!`;
+      const nomorAdminWA = "6281931194133"; // ⚠️ GANTI pake nomor WA toko lu (Awali dengan 628, jangan pakai 08)
+      const pesanOtomatis = `Halo ELANGSHOP 🦅,\n\nSaya ingin memesan produk dengan detail berikut:\n• *Nomor Invoice:* ${invoiceId}\n• *Total Pembayaran:* Rp ${totalHarga.toLocaleString("id-ID")}\n\nPesanan saya mohon segera diproses ya. Terima kasih!`;
 
       // 4. Lempar user ke tab WhatsApp baru
-      window.open(`https://wa.me/${nomorAdminWA}?text=${encodeURIComponent(pesanOtomatis)}`, "_blank");
+      if (typeof window !== "undefined") {
+        window.open(`https://wa.me/${nomorAdminWA}?text=${encodeURIComponent(pesanOtomatis)}`, "_blank");
+      }
 
     } catch (err) {
       alert("Terjadi kesalahan koneksi database.");
@@ -38,11 +48,12 @@ export default function CheckoutButton({ totalHarga, userEmail, noWaUser }: any)
   };
 
   return (
-    <button 
+    <button
+      type="button"
       onClick={handleBeliViaWhatsApp}
-      className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-2xl transition duration-300 flex items-center justify-center gap-2 shadow-lg shadow-green-500/10"
+      className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-2xl transition duration-300 flex items-center justify-center gap-2 shadow-lg shadow-green-500/10 cursor-pointer"
     >
-      💬 BELI SEKARANG VIA WHATSAPP
+      Beli Lewat WhatsApp
     </button>
   );
 }
