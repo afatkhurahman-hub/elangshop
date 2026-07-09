@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation"; // 🚀 1. Impor useRouter untuk navigasi halaman
 
 const products = [
   {
@@ -42,6 +43,8 @@ const products = [
 ];
 
 export default function PopularProducts() {
+  const router = useRouter(); // 🚀 2. Inisialisasi router di dalam komponen
+
   const handleProductClick = (item: (typeof products)[number]) => {
     // 1. Kirim data lengkap (title, sub, DAN SEKARANG TERMASUK image & category)
     const event = new CustomEvent("selectProduct", {
@@ -69,9 +72,8 @@ export default function PopularProducts() {
           <h2 className="text-[28px] font-bold">Produk Populer</h2>
           <button
             onClick={() => {
-              // Memicu event kustom agar disaklar oleh state di app/page.tsx
-              const event = new Event("openAllProductsView");
-              window.dispatchEvent(event);
+              // 🚀 3. Pindah langsung ke halaman dashboard layanan (/game)
+              router.push("/game");
             }}
             className="flex items-center gap-1 text-yellow-400 text-sm font-semibold cursor-pointer bg-transparent border-none outline-none hover:underline"
           >

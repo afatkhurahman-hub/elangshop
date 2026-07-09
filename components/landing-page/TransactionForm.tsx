@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation"; // 🚀 Tambah useRouter untuk manipulasi URL
 import { Zap, ShieldCheck, ArrowLeft } from "lucide-react";
 import { productsData } from "@/components/landing-page/productsData";
 import { supabase } from "@/supabaseClient"; 
@@ -26,8 +27,39 @@ export default function TransactionForm({
   const [showNotice, setShowNotice] = useState(false);
   const [loading, setLoading] = useState(false); 
   const [isLoggedIn, setIsLoggedIn] = useState(false); 
+  
+  const router = useRouter(); // 🚀 Inisialisasi router Next.js
+  const pathname = usePathname(); // 🚀 Ambil rute dasar aktif (ex: /game atau /pulsa)
 
-  // Ambil status login user saat halaman dimuat (hanya untuk logika potongan harga tampilan UI)
+  // 🚀 TRACKING & URL SINKRONISASI OTOMATIS SAAT FORM DIBUKA
+ // 🚀 TRACKING & URL SINKRONISASI OTOMATIS SAAT FORM DIBUKA
+  useEffect(() => {
+    if (!product?.title) return;
+
+    // Format nama produk menjadi slug aman URL (contoh: "Free Fire" -> "free-fire")
+    const productSlug = product.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "") // Hapus karakter spesial
+      .replace(/\s+/g, "-");        // Ubah spasi jadi minus
+
+    // Gabungkan rute utama dengan slug produk (Contoh hasil: /game/free-fire)
+    // 🚀 Perbaikan: Jika pathname sudah berupa "/", cukup gunakan "/" + productSlug agar tidak menjadi "//"
+    const dynamicPath = pathname === "/" ? `/${productSlug}` : `${pathname}/${productSlug}`;
+
+    // 1. Ubah URL di address bar browser secara halus tanpa reload halaman penuh
+    window.history.pushState({ ...window.history.state, as: dynamicPath, url: dynamicPath }, "", dynamicPath);
+
+    // 2. Kirim data analitik ke Google Analytics (gtag)
+    if (typeof window !== "undefined" && (window as any).gtag) {
+      (window as any).gtag("config", "G-6FDGZLK65H", {
+        page_path: dynamicPath,
+        page_title: `Beli ${product.title} - ELANGSHOP`,
+      });
+    }
+  }, [product?.title, pathname]);
+
+  // Ambil status login user saat halaman dimuat
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -169,26 +201,21 @@ export default function TransactionForm({
   };
 
   const nominalPrice = getCalculatedPrice();
-
-  // INTEGRASI SUPABASE & INTEGRASI WHATSAPP OTOMATIS
+// INTEGRASI SUPABASE & INTEGRASI WHATSAPP OTOMATIS
   const handleOrderWhatsApp = async () => {
     if (loading) return;
     setLoading(true);
 
-    // 1. Membuat Invoice ID acak unik
     const invoiceId = `ELG-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // 2. Membersihkan format harga menjadi murni integer
     let cleanPrice = 0;
     if (nominalPrice && nominalPrice !== "-") {
       cleanPrice = parseInt(String(nominalPrice).replace(/[^0-9]/g, ""), 10) || 0;
     }
 
-    // Identifikasi data tujuan akun untuk format chat WA
     let accountData = userId;
     if (butuhServer) accountData = `${userId} (${zoneId})`;
 
-    // 3. LOGIKA SORTIR OTOMATIS 3 JALUR BERDASARKAN PRODUK & INPUT USER
     let savedEmail = "-";
     let savedWhatsapp = "-";
     let savedTargetId = "-";
@@ -206,7 +233,6 @@ export default function TransactionForm({
     }
 
     try {
-      // 4. 🚀 Memanggil fungsi database (RPC v3) yang bersih tanpa field user_id
       const { error } = await supabase
         .rpc('insert_transaction_v3', {
           p_id: invoiceId,
@@ -223,7 +249,6 @@ export default function TransactionForm({
         return;
       }
 
-      // 5. Susun pesan template WhatsApp
       let message =
         `Halo ELANGSHOP 🦅,\n\n` +
         `Saya ingin memesan produk dengan detail berikut:\n\n` +
@@ -240,10 +265,10 @@ export default function TransactionForm({
         `💵 Total Harga: *${nominalPrice}*\n\n` +
         `Saya akan segera melakukan transfer pembayaran dan mengirimkan buktinya di sini. Mohon diproses ya min!`;
 
-      // 6. Buka WhatsApp admin
+      // 🚀 PERBAIKAN DI SINI: '_blank' harus dibungkus string agar tidak dibaca sebagai variabel undefined
       window.open(
         `https://wa.me/6281931194133?text=${encodeURIComponent(message)}`,
-        "_blank",
+        "_blank"
       );
       
       setShowNotice(false);
@@ -259,8 +284,12 @@ export default function TransactionForm({
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-8 animate-fade-in">
+      {/* 🚀 TOMBOL KEMBALI KINI MENYINKRONKAN KEMBALI URL KE /game, /pulsa, dll */}
       <button
-        onClick={onBack}
+        onClick={() => {
+          router.push(pathname); // Kembalikan url ke base segment original (/game, /pulsa)
+          if (onBack) onBack();
+        }}
         className="flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6 group transition-colors"
       >
         <ArrowLeft
@@ -303,36 +332,28 @@ export default function TransactionForm({
 
           <div className="text-sm text-gray-400 space-y-4 leading-relaxed font-normal">
             {isPremiumApp ? (
-              <>
-                <p>
-                  Nikmati hiburan tanpa batas dan fitur premium tanpa gangguan iklan!
-                  <strong className="text-white"> ELANGSHOP</strong> menyediakan layanan berlangganan akun
-                  <span className="text-[#FACC15] font-semibold"> {product.title}</span> dengan proses yang super praktis, legal, dan aman 100%.
-                </p>
-              </>
+              <p>
+                Nikmati hiburan tanpa batas dan fitur premium tanpa gangguan iklan!
+                <strong className="text-white"> ELANGSHOP</strong> menyediakan layanan berlangganan akun
+                <span className="text-[#FACC15] font-semibold"> {product.title}</span> dengan proses yang super praktis, legal, dan aman 100%.
+              </p>
             ) : categoryLower === "pulsa" || categoryLower === "paket data" ? (
-              <>
-                <p>
-                  Jangan biarkan komunikasi dan internetanmu terputus di tengah jalan! Isi ulang pulsa atau kuota data{" "}
-                  <strong className="text-white">{product.title}</strong> kamu sekarang juga di
-                  <span className="text-[#FACC15] font-semibold"> ELANGSHOP</span> dengan harga agen yang jauh lebih hemat.
-                </p>
-              </>
+              <p>
+                Jangan biarkan komunikasi dan internetanmu terputus di tengah jalan! Isi ulang pulsa atau kuota data{" "}
+                <strong className="text-white">{product.title}</strong> kamu sekarang juga di
+                <span className="text-[#FACC15] font-semibold"> ELANGSHOP</span> dengan harga agen yang jauh lebih hemat.
+              </p>
             ) : titleLower.includes("pln") ? (
-              <>
-                <p>
-                  Token listrik di rumah sudah berbunyi? Jangan panik! Top up token PLN atau bayar tagihan listrik Anda secara instan melalui
-                  <strong className="text-white"> ELANGSHOP</strong> tanpa biaya admin yang mencekik.
-                </p>
-              </>
+              <p>
+                Token listrik di rumah sudah berbunyi? Jangan panik! Top up token PLN atau bayar tagihan listrik Anda secara instan melalui
+                <strong className="text-white"> ELANGSHOP</strong> tanpa biaya admin yang mencekik.
+              </p>
             ) : (
-              <>
-                <p>
-                  Mau mabar makin percaya diri dengan skin dan item terbaru?
-                  <strong className="text-white"> ELANGSHOP</strong> adalah solusi terbaik untuk top up
-                  <span className="text-[#FACC15] font-semibold"> {product.title}</span> legal, aman, dan termurah di Indonesia.
-                </p>
-              </>
+              <p>
+                Mau mabar makin percaya diri dengan skin dan item terbaru?
+                <strong className="text-white"> ELANGSHOP</strong> adalah solusi terbaik untuk top up
+                <span className="text-[#FACC15] font-semibold"> {product.title}</span> legal, aman, dan termurah di Indonesia.
+              </p>
             )}
           </div>
         </div>

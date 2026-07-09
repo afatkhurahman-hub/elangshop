@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Navbar from "@/components/landing-page/Navbar";
 import Hero from "@/components/landing-page/Hero";
 import Featrues from "@/components/landing-page/Featrues";
@@ -17,8 +18,9 @@ import TransactionForm from "@/components/landing-page/TransactionForm";
 export default function Home() {
   const [view, setView] = useState<"home" | "all-dashboard" | "detail">("home");
   const [activeCategory, setActiveCategory] = useState<string>("home");
+  const pathname = usePathname();
 
-  // 🌟 SESUAIKAN: Menambahkan properti 'sub' opsional ke dalam tipe data state selectedProduct
+  // Menambahkan properti 'sub' opsional ke dalam tipe data state selectedProduct
   const [selectedProduct, setSelectedProduct] = useState<{
     title: string;
     category: string;
@@ -29,6 +31,31 @@ export default function Home() {
   const [previousView, setPreviousView] = useState<"home" | "all-dashboard">(
     "home",
   );
+
+  // 🚀 PERBAIKAN UTAMA: Perbaiki logika sinkronisasi agar tidak menabrak "detail"
+  useEffect(() => {
+    // KUNCI: Jika sedang melihat detail transaksi, JANGAN biarkan URL mereset view!
+    if (view === "detail") return;
+
+    if (pathname === "/") {
+      setView("home");
+      setActiveCategory("home");
+    } else {
+      setView("all-dashboard");
+      // Mencari kategori yang cocok berdasarkan slug URL saat ini agar tab aktifnya sesuai
+      const slugs: Record<string, string> = {
+        "/game": "Game",
+        "/pulsa": "Pulsa",
+        "/paketdata": "Paket Data",
+        "/e-wallet": "E-Wallet",
+        "/premium": "Premium",
+        "/pln": "PLN",
+      };
+      if (slugs[pathname]) {
+        setActiveCategory(slugs[pathname]);
+      }
+    }
+  }, [pathname, view]); // Jalankan ulang hanya jika rute browser atau status tampilan berubah
 
   useEffect(() => {
     const handleOpenAllProducts = () => {
@@ -45,7 +72,6 @@ export default function Home() {
     };
 
     const handleLocalSelectProduct = (event: Event) => {
-      // 🌟 SESUAIKAN: Menangkap detail event lengkap dari PopularProducts (title, category, image, sub)
       const customEvent = event as CustomEvent<{
         title: string;
         category: string;
@@ -59,7 +85,7 @@ export default function Home() {
           title: customEvent.detail.title,
           category: customEvent.detail.category || "Game",
           image: customEvent.detail.image || "",
-          sub: customEvent.detail.sub || "", // 🌟 Menyimpan nominal untuk diteruskan ke TransactionForm
+          sub: customEvent.detail.sub || "",
         });
         setView("detail");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -107,6 +133,8 @@ export default function Home() {
       category: category,
       image: productImage,
     });
+
+    // 🚀 Pemicu perpindahan ke form detail transaksi
     setView("detail");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };

@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Search, Menu, X, AlertTriangle, LogOut, User } from "lucide-react";
 import { supabase } from "@/supabaseClient";
 import Link from "next/link";
+// 🚀 UPDATE: Import useRouter dari next/navigation untuk navigasi URL rute halaman
+import { useRouter } from "next/navigation";
 
 // 1. Interface Props tetap dipertahankan
 interface NavbarProps {
@@ -19,12 +21,15 @@ export default function Navbar({
 }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // State baru untuk manajemen session user dari Supabase
   const [user, setUser] = useState<any>(null);
 
   // State untuk mengontrol kemunculan pop-up kustom "fitur sedang dikembangkan"
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
+
+  // 🚀 UPDATE: Inisialisasi router Next.js
+  const router = useRouter();
 
   // Ambil dan pantau session login user
   useEffect(() => {
@@ -34,7 +39,9 @@ export default function Navbar({
     });
 
     // 2. Pasang listener untuk mendeteksi perubahan auth (Login/Logout) secara real-time
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -43,7 +50,9 @@ export default function Navbar({
 
   // Fungsi penanganan keluar akun (Logout)
   const handleLogout = async () => {
-    const confirmLogout = window.confirm("Apakah Anda yakin ingin keluar dari ELANGSHOP?");
+    const confirmLogout = window.confirm(
+      "Apakah Anda yakin ingin keluar dari ELANGSHOP?",
+    );
     if (confirmLogout) {
       await supabase.auth.signOut();
       alert("Berhasil keluar akun!");
@@ -51,25 +60,29 @@ export default function Navbar({
   };
 
   // Mapping Menu Display dengan ID Kategori data asli kamu
+  // 🚀 UPDATE: Tambahkan properti slug pada tiap objek menu untuk alamat URL-nya
   const menuList = [
-    { name: "Beranda", id: "home" },
-    { name: "Game", id: "Game" },
-    { name: "Pulsa & Data", id: "Pulsa" },
-    { name: "E-Wallet", id: "E-Wallet" },
-    { name: "Aplikasi Premium", id: "Premium" },
-    { name: "PLN", id: "PLN" },
-    { name: "Promo", id: "Promo" },
+    { name: "Beranda", id: "home", slug: "/" },
+    { name: "Game", id: "Game", slug: "/game" },
+    { name: "Pulsa", id: "Pulsa", slug: "/pulsa" },
+    { name: "Paket Data", id: "PaketData", slug: "/paketdata" },
+    { name: "E-Wallet", id: "E-Wallet", slug: "/e-wallet" },
+    { name: "Aplikasi Premium", id: "Premium", slug: "/premium" },
+    { name: "PLN", id: "PLN", slug: "/pln" },
+    { name: "Promo", id: "Promo", slug: "#promo-section" },
   ];
 
   // Tentukan menu mana yang aktif berdasarkan prop dari parent page.tsx
   const currentActiveMenu =
     menuList.find((m) => m.id === activeCategory)?.name || "Beranda";
 
-  const handleMenuClick = (menuName: string, menuId: string) => {
+  // 🚀 UPDATE: Tambahkan parameter `slug` di dalam fungsi klik
+  const handleMenuClick = (menuName: string, menuId: string, slug?: string) => {
     setIsMobileMenuOpen(false);
 
     // Jika user mengklik Beranda
     if (menuId === "home") {
+      router.push("/"); // 🚀 Pindahkan halaman ke Home
       window.dispatchEvent(new Event("openHomeView"));
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -82,6 +95,11 @@ export default function Navbar({
         promoElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       return;
+    }
+
+    // 🚀 UPDATE: Arahkan URL browser sesuai halaman kategori yang diklik
+    if (slug) {
+      router.push(slug);
     }
 
     // Untuk kategori produk
@@ -104,7 +122,7 @@ export default function Navbar({
       <div className="max-w-[1400px] mx-auto px-6 h-[76px] xl:h-[84px] flex items-center justify-between gap-4">
         {/* ========================== LOGO ========================== */}
         <button
-          onClick={() => handleMenuClick("Beranda", "home")}
+          onClick={() => handleMenuClick("Beranda", "home", "/")}
           className="flex items-center gap-2 shrink-0 group outline-none text-left active:scale-[0.98] transition-transform"
         >
           <img
@@ -129,7 +147,7 @@ export default function Navbar({
             return (
               <button
                 key={menu.id}
-                onClick={() => handleMenuClick(menu.name, menu.id)}
+                onClick={() => handleMenuClick(menu.name, menu.id, menu.slug)} // 🚀 UPDATE: Oper properti menu.slug ke fungsi klik
                 className={`relative h-full flex items-center justify-center transition-all pb-1 tracking-wide ${
                   isActive ? "text-[#FACC15]" : "text-gray-400 hover:text-white"
                 }`}
@@ -172,7 +190,9 @@ export default function Navbar({
             <div className="flex items-center gap-2">
               {/* Tampilan Ringkas Info User */}
               <div className="hidden sm:flex flex-col items-end px-2">
-                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Member</span>
+                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  Member
+                </span>
                 <span className="text-xs font-bold text-gray-200 max-w-[120px] truncate">
                   {user.user_metadata?.full_name || user.email?.split("@")[0]}
                 </span>
@@ -241,7 +261,7 @@ export default function Navbar({
               return (
                 <button
                   key={menu.id}
-                  onClick={() => handleMenuClick(menu.name, menu.id)}
+                  onClick={() => handleMenuClick(menu.name, menu.id, menu.slug)} // 🚀 UPDATE: Oper properti menu.slug ke fungsi klik mobile
                   className={`w-full text-left py-3 px-3 rounded-xl text-sm font-bold transition-all ${
                     isActive
                       ? "bg-[#FACC15]/10 text-[#FACC15]"

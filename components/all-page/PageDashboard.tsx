@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation"; // 🚀 Tambahan router bawaan Next.js
 import {
   Gamepad2,
   Smartphone,
@@ -34,16 +35,38 @@ export default function PageDashboardAll({
   setActiveCategory,
 }: PageDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter(); // 🚀 Inisialisasi Router
+  const pathname = usePathname(); // 🚀 Cek URL Aktif saat ini
 
   // Daftar Kategori beserta Ikon pendukung dari Lucide React
   const categories = [
-    { id: "Game", label: "Game", icon: Gamepad2 },
-    { id: "Pulsa", label: "Pulsa", icon: Smartphone },
-    { id: "Paket Data", label: "Paket Data", icon: Database },
-    { id: "E-Wallet", label: "E-Wallet", icon: Wallet },
-    { id: "Premium", label: "Aplikasi Premium", icon: Tv },
-    { id: "PLN", label: "PLN", icon: Zap },
+    { id: "Game", label: "Game", icon: Gamepad2, slug: "/game" },
+    { id: "Pulsa", label: "Pulsa", icon: Smartphone, slug: "/pulsa" },
+    {
+      id: "Paket Data",
+      label: "Paket Data",
+      icon: Database,
+      slug: "/paketdata",
+    },
+    { id: "E-Wallet", label: "E-Wallet", icon: Wallet, slug: "/e-wallet" },
+    { id: "Premium", label: "Aplikasi Premium", icon: Tv, slug: "/premium" },
+    { id: "PLN", label: "PLN", icon: Zap, slug: "/pln" },
   ];
+
+  // 🚀 SINKRONISASI OTOMATIS: Jika user akses lewat URL langsung (misal masuk lewat link /pulsa),
+  // komponen ini otomatis menyesuaikan state tab aktifnya biar sinkron tanpa reset.
+  useEffect(() => {
+    const currentCat = categories.find((cat) => pathname.includes(cat.slug));
+
+    // UPDATE: Tambahkan pengecekan && setActiveCategory agar aman di halaman lain
+    if (
+      currentCat &&
+      activeCategory !== currentCat.id &&
+      typeof setActiveCategory === "function"
+    ) {
+      setActiveCategory(currentCat.id);
+    }
+  }, [pathname, activeCategory, setActiveCategory]); // Menggabungkan & merapikan dependensi hook
 
   // Fungsi pemetaan gambar lokal dari folder public kamu (Mencegah fallback elangshop terus)
   const getProductImage = (name: string) => {
@@ -118,7 +141,16 @@ export default function PageDashboardAll({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={() => {
+              if (typeof setActiveCategory === "function") {
+                setActiveCategory("home"); // Tutup state dashboard ke home view
+              }
+              if (onBack) {
+                onBack(); // Jalankan callback bawaan original
+              }
+              router.push("/"); // 🚀 UPDATE SINKRONISASI: Paksa browser keluar rute dan kembali ke Beranda utama
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
             className="p-2 bg-gray-800/60 hover:bg-gray-700/80 rounded-xl transition group"
           >
             <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-white transition" />
@@ -155,8 +187,21 @@ export default function PageDashboardAll({
             <button
               key={cat.id}
               onClick={() => {
-                setActiveCategory(cat.id); // Merubah state global di page.tsx sekaligus mengubah keaktifan navbar
+                if (typeof setActiveCategory === "function") {
+                  setActiveCategory(cat.id);
+                }
                 setSearchQuery("");
+
+                // 🚀 UPDATE SINKRONISASI: Gunakan router Next.js untuk merubah rute URL daripada history API mentah
+                router.push(cat.slug);
+
+                // 🚀 KABARKAN GOOGLE ANALYTICS: Kirim sinyal bahwa user telah resmi ganti halaman asli
+                if (typeof window !== "undefined" && (window as any).gtag) {
+                  (window as any).gtag("config", "G-6FDGZLK65H", {
+                    page_path: cat.slug,
+                    page_title: `Kategori ${cat.label} - ELANGSHOP`,
+                  });
+                }
               }}
               className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition ${
                 isActive
@@ -180,7 +225,6 @@ export default function PageDashboardAll({
             return (
               <button
                 key={index}
-                // MODIFIKASI: Sekarang ikut melemparkan imgUrl saat fungsi diklik!
                 onClick={() => onSelectProduct(product, activeCategory, imgUrl)}
                 className="flex flex-col items-center bg-[#111625] border border-gray-800/40 hover:border-yellow-400/60 p-5 rounded-2xl transition-all duration-300 hover:-translate-y-1 group relative overflow-hidden"
               >
@@ -192,7 +236,6 @@ export default function PageDashboardAll({
                       alt={product}
                       className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       onError={(e) => {
-                        // Jika gambar gagal dimuat (404), dia akan memunculkan logo default/cadangan elangshop kamu
                         e.currentTarget.style.display = "none";
                         const sibling = e.currentTarget.nextElementSibling;
                         if (sibling) sibling.classList.remove("hidden");
